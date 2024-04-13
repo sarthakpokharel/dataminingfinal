@@ -9,6 +9,7 @@ import plotly.graph_objs as go
 from sklearn.naive_bayes import GaussianNB
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
+from tpot import TPOTRegressor
 
 app = Flask(__name__, template_folder='templates/html/')
 
@@ -137,7 +138,25 @@ def rtrain_and_plot_model(df):
 
     return rmse, fig_predictions.to_json(), fig_importance.to_json()
 
+def automate_model(df):
+    X = df.drop(['price'], axis=1)
+    y = df['price']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    # Create a TPOT AutoML instance
+    tpot = TPOTRegressor(generations=5, population_size=50, verbosity=2, random_state=42)
+    
+    # Fit TPOT on the training data
+    tpot.fit(X_train, y_train)
+    
+    # Evaluate the model on the test data
+    y_pred = tpot.predict(X_test)
+    
+    # Evaluate the model using RMSE
+    mse = mean_squared_error(y_test, y_pred)
+    rmse = np.sqrt(mse)
 
+    return rmse
 
 @app.route('/')
 def index():
@@ -152,9 +171,12 @@ def index():
     rmse, naive_bayes_plot_json = train_and_plot_model(df)
     rmsee, a, importance_plot_json = rtrain_and_plot_model(df)
 
+    # Automate model training and evaluation
+    rmse_automl = automate_model(df)
+
     return render_template('index.html', heatmap_json=heatmap_json, clustered_data_json=clustered_data_json,
                            elbow_plot_json=elbow_plot_json, naive_bayes_plot_json=naive_bayes_plot_json,rmse=rmse,
-                           importance_plot_json=importance_plot_json)
+                           importance_plot_json=importance_plot_json, rmse_automl=rmse_automl)
 
 if __name__ == '__main__':
     app.run(debug=True)
