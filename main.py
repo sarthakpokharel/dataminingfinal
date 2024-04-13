@@ -1,5 +1,6 @@
 from flask import Flask, render_template
 import pandas as pd
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.cluster import KMeans
 import numpy as np
@@ -91,6 +92,53 @@ def train_and_plot_model(df):
     return rmse, plot_json
 
 
+# Function to train Random Forest regressor, make predictions, and plot results
+def rtrain_and_plot_model(df):
+    # Split the data into features and target variable
+    X = df.drop(['price'], axis=1)
+    y = df['price']
+
+    # Split the data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Train a Random Forest regressor
+    rf_regressor = RandomForestRegressor(random_state=42)
+    rf_regressor.fit(X_train, y_train)
+
+    # Make predictions
+    y_pred = rf_regressor.predict(X_test)
+
+    # Evaluate the model using RMSE
+    mse = mean_squared_error(y_test, y_pred)
+    rmse = np.sqrt(mse)
+
+    # Get feature importances from the trained model
+    importances = rf_regressor.feature_importances_
+    features = X.columns
+    importance_df = pd.DataFrame({'Feature': features, 'Importance': importances})
+    importance_df = importance_df.sort_values(by='Importance', ascending=False)
+
+    # Plot feature importances
+    fig_importance = go.Figure()
+    fig_importance.add_trace(go.Bar(x=importance_df['Feature'], y=importance_df['Importance'],
+                                    marker_color='skyblue'))
+    fig_importance.update_layout(title='Feature Importance',
+                                 xaxis_title='Features',
+                                 yaxis_title='Importance')
+
+    # Plot actual vs predicted prices using Plotly
+    fig_predictions = go.Figure()
+    fig_predictions.add_trace(go.Scatter(x=y_test, y=y_pred, mode='markers', name='Predicted Prices'))
+    fig_predictions.add_trace(go.Scatter(x=y_test, y=y_test, mode='lines', name='Actual Prices',
+                                         line=dict(color='red', dash='dash')))
+    fig_predictions.update_layout(title='Actual Prices vs Predicted Prices',
+                                  xaxis_title='Actual Prices',
+                                  yaxis_title='Predicted Prices')
+
+    return rmse, fig_predictions.to_json(), fig_importance.to_json()
+
+
+
 @app.route('/')
 def index():
     df = pd.read_csv("Housing.csv")
@@ -102,9 +150,11 @@ def index():
     clustered_data_json = get_clustered_data(df, numerical_cols)
     elbow_plot_json = get_elbow_plot(df, numerical_cols)
     rmse, naive_bayes_plot_json = train_and_plot_model(df)
+    rmsee, a, importance_plot_json = rtrain_and_plot_model(df)
 
     return render_template('index.html', heatmap_json=heatmap_json, clustered_data_json=clustered_data_json,
-                           elbow_plot_json=elbow_plot_json, naive_bayes_plot_json=naive_bayes_plot_json,rmse=rmse)
+                           elbow_plot_json=elbow_plot_json, naive_bayes_plot_json=naive_bayes_plot_json,rmse=rmse,
+                           importance_plot_json=importance_plot_json)
 
 if __name__ == '__main__':
     app.run(debug=True)
