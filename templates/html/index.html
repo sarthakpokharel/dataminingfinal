@@ -69,11 +69,13 @@ Welcome
       <div class="col-6">
         <div class="card">
           <div class="card-body px-0">
-            <div id="graph">Bayes Naive Mining</div>
+            <span>Mean Squared error : {{rmse}}</span>
+            <div id="naive_bayes_plot_json">
+            </div>
           <script>
             // Retrieve the Plotly chart JSON from the Flask route
-            var graph = {{ graph | safe }}
-            Plotly.newPlot('graph', graph.data, graph.layout);
+            var naive_bayes_plot_json = {{ naive_bayes_plot_json | safe }}
+            Plotly.newPlot('naive_bayes_plot_json', naive_bayes_plot_json.data, naive_bayes_plot_json.layout);
           </script>
                  
           </div>
